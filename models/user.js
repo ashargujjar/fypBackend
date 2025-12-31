@@ -1,5 +1,5 @@
 import USER from "../schema/schema.js";
-
+import { Wallet } from "../schema/schema.js";
 class User {
   constructor(name, email, phone, password, role) {
     this.name = name;
@@ -18,6 +18,7 @@ class User {
         password: this.password,
         role: this.role,
       });
+      await Wallet.create({ userId: result._id });
       return result;
     } catch (err) {
       console.error("Error saving user:", err);
@@ -29,12 +30,20 @@ class User {
     return user;
   }
 
-  static async getUserById(id) {
+  static async getUserById(userId) {
     try {
-      return await USER.findById(id);
+      return await USER.findById(userId);
     } catch (err) {
       console.error("Error finding user by id:", err);
       throw err;
+    }
+  }
+  static async getWalletBalance(userId) {
+    try {
+      const wallet = await Wallet.findOne({ userId });
+      return wallet;
+    } catch (error) {
+      throw new Error("error has acoured in this");
     }
   }
 }

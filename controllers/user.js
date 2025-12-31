@@ -10,7 +10,7 @@ import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
 
 export const login = async (req, res) => {
   const { email, password, role } = req.body;
-
+  console.log(email, password, role);
   try {
     const user = await User.getUser(email, role);
     if (!user) {
@@ -237,5 +237,21 @@ export const resetPassword = async (req, res) => {
       success: false,
       message: "Server error while resetting password.",
     });
+  }
+};
+
+// ----------- getWalletBalance -------------
+export const getWalletBalance = async (req, res) => {
+  try {
+    const wallet = await User.getWalletBalance(req.user.id);
+
+    if (!wallet) {
+      throw new Error("error ");
+    }
+    return res.status(201).json({ success: true, wallet: wallet });
+  } catch (error) {
+    return res
+      .status(401)
+      .json({ success: false, message: "error fetching the wallet" });
   }
 };
