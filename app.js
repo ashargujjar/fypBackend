@@ -8,16 +8,32 @@ import complaint from "./routes/complaint.js";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectdb } from "./db/db.js";
+import helmet from "helmet";
+import morgan from "morgan";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || process.env.port || 3000;
+const rawCorsOrigins =
+  process.env.CORS_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  process.env.FROTEND_URL;
+const corsOrigins =
+  rawCorsOrigins && rawCorsOrigins.trim().length > 0
+    ? rawCorsOrigins.split(",").map((origin) => origin.trim())
+    : "*";
 
 app.use(express.json());
-dotenv.config();
+app.use(express.urlencoded({ extended: true }));
+app.use(helmet());
+if (process.env.NODE_ENV !== "test") {
+  app.use(morgan("combined"));
+}
 
 app.use(
   cors({
-    origin: "https://shipsmart12.netlify.app/",
+    origin: corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
