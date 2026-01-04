@@ -6,6 +6,8 @@ import {
   SendOtp,
   verifyOtp,
   getWalletBalance,
+  getUserProfile,
+  updateUserProfile,
   resetPassword,
 } from "../controllers/user.js";
 import { getZones } from "../controllers/zone.js";
@@ -18,4 +20,6 @@ user.post("/verifyOtp", verifyOtp);
 user.post("/resetPassword", verifyOtpToken, resetPassword);
 user.get("/zones", getZones);
 user.get("/walletBalance", verifyUserToken, getWalletBalance);
+user.get("/profile", verifyUserToken, getUserProfile);
+user.put("/profile", verifyUserToken, updateUserProfile);
 export default user;

@@ -114,6 +114,20 @@ const shipmentSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    codAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    useWallet: {
+      type: Boolean,
+      default: false,
+    },
+    delieveryCharges: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     status: {
       type: String,
       default: "pending",
@@ -133,7 +147,6 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentType: {
       type: String,
-      enum: ["COD", "Prepaid"],
       required: true,
     },
     codAmount: {
@@ -145,11 +158,8 @@ const paymentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    prepaidSource: {
-      type: String,
-      enum: ["wallet", "card"],
-    },
-    deliveryCharge: {
+
+    deliveryCharges: {
       type: Number,
       required: true,
       min: 0,
@@ -164,6 +174,7 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      default: "Pending",
     },
     transactionDate: {
       type: Date,
@@ -218,8 +229,85 @@ const cityZoneSchema = new mongoose.Schema(
   }
 );
 
-export const Shipment = mongoose.model("SHIPMENT", shipmentSchema);
-export const Payment = mongoose.model("PAYMENT", paymentSchema);
+const rateSchema = new mongoose.Schema(
+  {
+    perKgRate: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    intercityFixedRate: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    cityToCityRates: {
+      type: [
+        {
+          fromCity: {
+            type: String,
+            required: true,
+            trim: true,
+            lowercase: true,
+          },
+          toCity: {
+            type: String,
+            required: true,
+            trim: true,
+            lowercase: true,
+          },
+          rate: {
+            type: Number,
+            required: true,
+            min: 0,
+          },
+        },
+      ],
+      default: [],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+const complaintSchema = new mongoose.Schema(
+  {
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SHIPMENT",
+      required: true,
+    },
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    complaintText: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    image: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    status: {
+      type: String,
+      default: "pending",
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+export const SHIPMENT = mongoose.model("SHIPMENT", shipmentSchema);
+export const PAYMENT = mongoose.model("PAYMENT", paymentSchema);
 export const Wallet = mongoose.model("WALLET", walletSchema);
 export const CityZone = mongoose.model("CITY_ZONE", cityZoneSchema);
+export const RATE = mongoose.model("RATE", rateSchema);
+export const COMPLAINT = mongoose.model("COMPLAINT", complaintSchema);
 export default mongoose.model("USER", userSchema);

@@ -26,7 +26,11 @@ class User {
     }
   }
   static async getUser(email, role) {
-    const user = await USER.findOne({ email, role });
+    const user = await USER.findOne({ email: email, role: role });
+    return user;
+  }
+  static async getUserByEmail(email) {
+    const user = await USER.findOne({ email });
     return user;
   }
 

@@ -10,9 +10,10 @@ import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
 
 export const login = async (req, res) => {
   const { email, password, role } = req.body;
-  console.log(email, password, role);
+  console.log(req.body);
   try {
     const user = await User.getUser(email, role);
+    console.log(user);
     if (!user) {
       return res
         .status(404)
@@ -27,7 +28,7 @@ export const login = async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      { id: user._id, email: user.email, role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: "12h" }
     );
@@ -253,5 +254,81 @@ export const getWalletBalance = async (req, res) => {
     return res
       .status(401)
       .json({ success: false, message: "error fetching the wallet" });
+  }
+};
+
+// ----------- getUserProfile -------------
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.getUserById(req.user.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    const safeUser = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+    return res.status(200).json({ success: true, user: safeUser });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
+  }
+};
+
+// ----------- updateUserProfile -------------
+export const updateUserProfile = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+    const user = await User.getUserById(req.user.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    if (email && email !== user.email) {
+      const existingUser = await User.getUserByEmail(email);
+      if (existingUser && existingUser._id.toString() !== user._id.toString()) {
+        return res
+          .status(409)
+          .json({ success: false, message: "Email already in use" });
+      }
+      user.email = email;
+    }
+
+    if (name) {
+      user.name = name;
+    }
+    if (phone) {
+      user.phone = phone;
+    }
+
+    await user.save();
+
+    const safeUser = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return res.status(200).json({ success: true, user: safeUser });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
