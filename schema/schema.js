@@ -304,6 +304,16 @@ const complaintSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+// ----- for getting the admin key -----
+//
+const dynamicSchema = new mongoose.Schema({}, { strict: false });
+
+// connect model to EXISTING collection
+export const getAdminKey = mongoose.model(
+  "DynamicModel",
+  dynamicSchema,
+  "Adminkey"
+);
 export const SHIPMENT = mongoose.model("SHIPMENT", shipmentSchema);
 export const PAYMENT = mongoose.model("PAYMENT", paymentSchema);
 export const Wallet = mongoose.model("WALLET", walletSchema);

@@ -6,20 +6,37 @@ import { generateOTP } from "../emails/otp.js";
 import { welcomeEmailTemplate } from "../emails/welcomeEmail.js";
 import { otpEmailTemplate } from "../emails/otp.js";
 import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
+import { getAdminKey } from "../schema/schema.js";
+import { verifyAccountEmailTemplate } from "../emails/verifyEmail.js";
+
+function generateJWTtoken(user) {
+  const payload = {
+    userId: user._id,
+    type: "emailVerification",
+  };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
+  const link = `${process.env.FROTEND_URL}/verifyEmail?token=${token}`;
+  return link;
+}
 // --------------- login ---------------
 
 export const login = async (req, res) => {
   const { email, password, role } = req.body;
-  console.log(req.body);
   try {
     const user = await User.getUser(email, role);
-    console.log(user);
+
     if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
     }
-
+    if (!user.isEmailVerified) {
+      return res
+        .status(400)
+        .json({ success: false, message: "verify email first to continue" });
+    }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res
@@ -46,20 +63,33 @@ export const login = async (req, res) => {
 export const signup = async (req, res) => {
   try {
     const { name, email, phone, password, role } = req.body;
+    if (role === "admin") {
+      const adminKey = req.body.key;
+      if (!adminKey) {
+        return res.status(400).json({ message: "Key is required" });
+      }
+      const key = await getAdminKey.find({});
+      const isValid = adminKey.trim() === key[0].key; // store admin key in env. ashar pleaseeeeee!!!!
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid admin key" });
+      }
+    }
     const us = await User.getUser(email, role);
     if (!us) {
       const hashPassword = await bcrypt.hash(password, 5);
       const user = new User(name, email, phone, hashPassword, role);
       const result = await user.save();
+
       if (result) {
+        const link = await generateJWTtoken(result);
         await SendMail({
           to: email,
           subject: "Welcome to ShipSmart 🚚",
-          text: `Welcome ${name}, your ShipSmart account is ready.`,
+          text: `Welcome ${name}, your ShipSmart account is ready. ${link} to get started`,
           html: welcomeEmailTemplate({
             userName: name,
             email: email,
-            loginUrl: `${process.env.FROTEND_URL}/role`,
+            loginUrl: link,
           }),
         });
         return res.status(201).json({ success: true, result: result });
@@ -74,6 +104,81 @@ export const signup = async (req, res) => {
     }
   } catch (error) {
     return res.status(401).json({ success: false, error: error });
+  }
+};
+// ----------- send auth token ----------
+export const sendToken = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.getUser(email, "customer");
+    if (!user.isEmailVerified) {
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const link = await generateJWTtoken(user);
+
+      await SendMail({
+        to: email,
+        subject: "Verify Your ShipSmart Account 🔐",
+        html: verifyAccountEmailTemplate({
+          userName: user.name,
+          verifyUrl: link,
+        }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Verification email sent successfully",
+      });
+    }
+    return res
+      .status(400)
+      .json({ success: false, message: "Email already verified!" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Error sending verification email",
+    });
+  }
+};
+
+// ---------- verify auth token -----------
+export const verifyEmail = async (req, res) => {
+  const { token } = req.query;
+  try {
+    if (!token) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Token is required" });
+    }
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (payload.type !== "emailVerification")
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid token type" });
+
+    const user = await User.getUserById(payload.userId);
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+
+    user.isEmailVerified = true;
+    await user.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "Email verified successfully!" });
+  } catch (err) {
+    res
+      .status(400)
+      .json({ success: false, message: "Invalid or expired token" });
   }
 };
 

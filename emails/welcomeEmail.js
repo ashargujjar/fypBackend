@@ -150,7 +150,7 @@ export const welcomeEmailTemplate = ({
 
       <div class="button-wrapper">
         <a href="${loginUrl}" class="login-button">
-          Login to ShipSmart
+          Verify now to continue
         </a>
       </div>
 
