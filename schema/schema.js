@@ -52,6 +52,56 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+const riderSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 6,
+    },
+    assignedCity: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    riderCategory: {
+      type: String,
+      required: true,
+      enum: ["pickup", "linehaul", "delivery"],
+    },
+    assignedZone: {
+      type: String,
+      trim: true,
+      required: function () {
+        return (
+          this.riderCategory === "pickup" ||
+          this.riderCategory === "delivery"
+        );
+      },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const shipmentSchema = new mongoose.Schema(
   {
     userId: {
@@ -314,6 +364,7 @@ export const getAdminKey = mongoose.model(
   dynamicSchema,
   "Adminkey"
 );
+export const RIDER = mongoose.model("RIDER", riderSchema);
 export const SHIPMENT = mongoose.model("SHIPMENT", shipmentSchema);
 export const PAYMENT = mongoose.model("PAYMENT", paymentSchema);
 export const Wallet = mongoose.model("WALLET", walletSchema);
