@@ -2,7 +2,8 @@ import bcrypt from "bcryptjs";
 import Rider from "../models/rider.js";
 import { SendMail } from "../src/mails.js";
 import { riderWelcomeEmailTemplate } from "../emails/riderWelcome.js";
-
+import Shipment from "../models/shipment.js";
+import riderTasks from "../models/riderTasks.js";
 export const addRider = async (req, res) => {
   try {
     const {
@@ -54,7 +55,7 @@ export const addRider = async (req, res) => {
       hashPassword,
       assignedCity,
       riderCategory,
-      assignedZone
+      assignedZone,
     );
 
     const result = await rider.save();
@@ -103,5 +104,39 @@ export const addRider = async (req, res) => {
       success: false,
       message: "Server error while adding rider",
     });
+  }
+};
+
+export const getShipments = async (req, res) => {
+  try {
+    const shipment = await Shipment.getallShipments();
+    if (!shipment) {
+      throw new Error("shipments not found");
+    }
+    return res.status(200).json({ success: true, shipments: shipment });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error });
+  }
+};
+
+export const assignRider = async (req, res) => {
+  try {
+    const { shipmentId, riderId } = req.body;
+    if (!shipmentId || !riderId) {
+      return res.status(400).json({
+        success: false,
+        message: "shipmentId and riderId are required",
+      });
+    }
+    const Tasks = new riderTasks(riderId, shipmentId);
+    const resp = await Tasks.assignRiderToShipment();
+    if (!resp) {
+      throw new Error("un able to assign the rider");
+    }
+    return res
+      .status(201)
+      .json({ success: true, message: "rider task assigned succesfully" });
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
   }
 };

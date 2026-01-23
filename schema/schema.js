@@ -49,7 +49,7 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const riderSchema = new mongoose.Schema(
@@ -91,15 +91,14 @@ const riderSchema = new mongoose.Schema(
       trim: true,
       required: function () {
         return (
-          this.riderCategory === "pickup" ||
-          this.riderCategory === "delivery"
+          this.riderCategory === "pickup" || this.riderCategory === "delivery"
         );
       },
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const shipmentSchema = new mongoose.Schema(
@@ -182,10 +181,15 @@ const shipmentSchema = new mongoose.Schema(
       type: String,
       default: "pending",
     },
+    riderStatus: {
+      type: String,
+      default: "unassigned",
+      enum: ["assigned", "unassigned"],
+    },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const paymentSchema = new mongoose.Schema(
@@ -233,7 +237,7 @@ const paymentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const walletSchema = new mongoose.Schema(
@@ -253,7 +257,7 @@ const walletSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const cityZoneSchema = new mongoose.Schema(
@@ -276,7 +280,7 @@ const cityZoneSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const rateSchema = new mongoose.Schema(
@@ -320,7 +324,7 @@ const rateSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 const complaintSchema = new mongoose.Schema(
   {
@@ -352,7 +356,39 @@ const complaintSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
+);
+const riderTasksSchema = new mongoose.Schema(
+  {
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SHIPMENT",
+      required: true,
+    },
+    riderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RIDER",
+      required: true,
+    },
+    assignedTime: {
+      type: Date,
+      required: true,
+      default: Date.now,
+    },
+    completedTime: {
+      type: Date,
+      default: null,
+    },
+    status: {
+      type: String,
+      required: true,
+      trim: true,
+      default: "assigned",
+    },
+  },
+  {
+    timestamps: true,
+  },
 );
 // ----- for getting the admin key -----
 //
@@ -362,7 +398,7 @@ const dynamicSchema = new mongoose.Schema({}, { strict: false });
 export const getAdminKey = mongoose.model(
   "DynamicModel",
   dynamicSchema,
-  "Adminkey"
+  "Adminkey",
 );
 export const RIDER = mongoose.model("RIDER", riderSchema);
 export const SHIPMENT = mongoose.model("SHIPMENT", shipmentSchema);
@@ -371,4 +407,5 @@ export const Wallet = mongoose.model("WALLET", walletSchema);
 export const CityZone = mongoose.model("CITY_ZONE", cityZoneSchema);
 export const RATE = mongoose.model("RATE", rateSchema);
 export const COMPLAINT = mongoose.model("COMPLAINT", complaintSchema);
+export const RiderTasks = mongoose.model("RIDER_TASKS", riderTasksSchema);
 export default mongoose.model("USER", userSchema);

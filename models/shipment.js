@@ -1,4 +1,5 @@
 import { SHIPMENT } from "../schema/schema.js";
+import { RiderTasks } from "../schema/schema.js";
 class Shipment {
   constructor(
     userId,
@@ -15,7 +16,7 @@ class Shipment {
     notes,
     codAmount,
     useWallet,
-    delieveryCharges
+    delieveryCharges,
   ) {
     this.userId = userId;
     this.pickupAddress = pickupAddress;
@@ -43,6 +44,18 @@ class Shipment {
   }
   static async getShipmentById(shipmentId) {
     const shipment = await SHIPMENT.findById(shipmentId);
+    return shipment;
+  }
+  static async getallShipments() {
+    const shipments = await SHIPMENT.find();
+    return shipments;
+  }
+  static async updateShipmentStatus(status, shipmentId) {
+    const shipment = await SHIPMENT.findByIdAndUpdate(
+      shipmentId,
+      { status },
+      { new: true },
+    );
     return shipment;
   }
 }

@@ -8,7 +8,7 @@ class Rider {
     password,
     assignedCity,
     riderCategory,
-    assignedZone
+    assignedZone,
   ) {
     this.name = name;
     this.phone = phone;
@@ -40,6 +40,15 @@ class Rider {
     try {
       const rider = await RIDER.find();
       return rider;
+    } catch (error) {
+      console.error("Error geting rider rider:", err);
+      throw err;
+    }
+  }
+  static async getRiderbyCityZone(assignedCity, assignedZone) {
+    try {
+      const riders = await RIDER.find({ assignedCity, assignedZone });
+      return riders;
     } catch (error) {
       console.error("Error geting rider rider:", err);
       throw err;
