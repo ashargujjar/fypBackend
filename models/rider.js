@@ -1,4 +1,4 @@
-import { RIDER } from "../schema/schema.js";
+import { RIDER, RiderTasks } from "../schema/schema.js";
 
 class Rider {
   constructor(
@@ -52,6 +52,16 @@ class Rider {
     } catch (error) {
       console.error("Error geting rider rider:", err);
       throw err;
+    }
+  }
+  static async getRiderTasks(riderId) {
+    try {
+      const query = riderId ? { riderId } : {};
+      const tasks = await RiderTasks.find(query);
+      return tasks;
+    } catch (error) {
+      console.error("Error fetching rider tasks:", error);
+      throw new Error("error fetching rider tasks");
     }
   }
 }

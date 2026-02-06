@@ -16,7 +16,7 @@ const uploadToCloudinary = (fileBuffer) =>
             return;
           }
           resolve(result);
-        }
+        },
       )
       .end(fileBuffer);
   });
@@ -86,5 +86,31 @@ export const createComplaint = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+export const getComplaints = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    let shipments = await SHIPMENT.find({ userId });
+    if (shipments) {
+      const shipmentIds = shipments.map((s) => s._id);
+      const complaints = await COMPLAINT.find({
+        shipmentId: { $in: shipmentIds },
+      });
+      if (complaints) {
+        return res.status(200).json({ success: true, complaints: complaints });
+      } else {
+        return res
+          .status(200)
+          .json({ success: true, message: "No complaints found" });
+      }
+    } else {
+      return res.status(200).json({
+        success: true,
+        message: "Your shipments is empty.Book your shipment now",
+      });
+    }
+  } catch (error) {
+    return res.status(400).json({ success: true, message: error });
   }
 };
