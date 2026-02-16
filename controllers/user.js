@@ -47,7 +47,7 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role, name: user.name },
       process.env.JWT_SECRET,
-      { expiresIn: "12h" }
+      { expiresIn: "12h" },
     );
 
     return res
@@ -255,7 +255,7 @@ export const verifyOtp = async (req, res) => {
     }
     const isOtpValid = await bcrypt.compare(
       otp.toString(),
-      user.forgotPasswordOtp
+      user.forgotPasswordOtp,
     );
     if (!isOtpValid) {
       return res.status(400).json({
@@ -276,11 +276,11 @@ export const verifyOtp = async (req, res) => {
       process.env.JWT_SECRET,
       {
         expiresIn: "10m",
-      }
+      },
     );
     return res.status(200).json({
       success: true,
-      message: "OTP verified successfully",
+      message: "OTP verified successfuoginly",
       resetToken: resetToken,
     });
   } catch (error) {
