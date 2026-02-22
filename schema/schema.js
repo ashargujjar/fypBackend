@@ -95,6 +95,13 @@ const riderSchema = new mongoose.Schema(
         );
       },
     },
+    forgotPasswordOtp: {
+      type: String,
+    },
+
+    forgotPasswordOtpExpiry: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

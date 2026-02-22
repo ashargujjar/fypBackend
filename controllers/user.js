@@ -8,6 +8,7 @@ import { otpEmailTemplate } from "../emails/otp.js";
 import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
 import { getAdminKey } from "../schema/schema.js";
 import { verifyAccountEmailTemplate } from "../emails/verifyEmail.js";
+import Rider from "../models/rider.js";
 
 function generateJWTtoken(user) {
   const payload = {
@@ -25,34 +26,63 @@ function generateJWTtoken(user) {
 export const login = async (req, res) => {
   const { email, password, role } = req.body;
   try {
-    const user = await User.getUser(email, role);
+    if (role !== "rider") {
+      const user = await User.getUser(email, role);
 
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-    if (!user.isEmailVerified) {
-      return res
-        .status(400)
-        .json({ success: false, message: "verify email first to continue" });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid password" });
-    }
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+      if (!user.isEmailVerified) {
+        return res
+          .status(400)
+          .json({ success: false, message: "verify email first to continue" });
+      }
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Invalid password" });
+      }
 
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role, name: user.name },
-      process.env.JWT_SECRET,
-      { expiresIn: "12h" },
-    );
+      const token = jwt.sign(
+        { id: user._id, email: user.email, role: user.role, name: user.name },
+        process.env.JWT_SECRET,
+        { expiresIn: "12h" },
+      );
 
-    return res
-      .status(200)
-      .json({ success: true, message: "Login successful", token });
+      return res
+        .status(200)
+        .json({ success: true, message: "Login successful", token });
+    } else {
+      const rider = await Rider.getRiderByMail(email);
+      if (!rider) {
+        return res
+          .status(404)
+          .json({ success: false, message: "rider not found" });
+      }
+      const isMatch = await bcrypt.compare(password, rider.password);
+      if (!isMatch) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Invalid Password" });
+      }
+      const token = jwt.sign(
+        {
+          id: rider._id,
+          name: rider.name,
+          assignedCity: rider.assignedCity,
+          riderCategory: rider.riderCategory,
+          assignedZone: rider.assignedZone,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "12h" },
+      );
+      return res
+        .status(200)
+        .json({ success: true, message: "Login successful", token });
+    }
   } catch (err) {
     console.error(err);
     return res.status(500).json({ succes: false, message: "Server error" });
@@ -183,47 +213,37 @@ export const verifyEmail = async (req, res) => {
 };
 
 // ------------send otp -----------
-
 export const SendOtp = async (req, res) => {
   try {
     const { email, role } = req.body;
+    const roleNormalized = role?.toLowerCase().trim();
 
-    const user = await User.getUser(email, role);
+    const user =
+      roleNormalized === "rider"
+        ? await Rider.getRiderByMail(email)
+        : await User.getUser(email, roleNormalized);
+
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      return res.status(404).json({ success: false, message: "Not found" });
     }
 
     const otp = generateOTP();
-
     user.forgotPasswordOtp = await bcrypt.hash(otp.toString(), 10);
-    user.forgotPasswordOtpExpiry = Date.now() + 5 * 60 * 1000; // 5 mins
+    user.forgotPasswordOtpExpiry = Date.now() + 5 * 60 * 1000;
 
     await user.save();
 
     await SendMail({
       to: user.email,
-      subject: "Your ShipSmart OTP Code",
-      text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-      html: otpEmailTemplate({
-        userName: user.name,
-        otp,
-        validityMinutes: 5,
-      }),
+      subject: "OTP Code",
+      text: `OTP is ${otp}`,
+      html: otpEmailTemplate({ userName: user.name, otp, validityMinutes: 5 }),
     });
 
-    return res.status(200).json({
-      success: true,
-      message: "OTP sent successfully",
-    });
-  } catch (error) {
-    console.error("SendOtp error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+    return res.json({ success: true, message: "OTP sent" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false });
   }
 };
 
@@ -232,8 +252,13 @@ export const SendOtp = async (req, res) => {
 export const verifyOtp = async (req, res) => {
   try {
     const { email, role, otp } = req.body;
+    const roleNormalized = role?.toLowerCase().trim();
 
-    const user = await User.getUser(email, role);
+    const user =
+      roleNormalized === "rider"
+        ? await Rider.getRiderByMail(email)
+        : await User.getUser(email, role);
+
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -314,29 +339,39 @@ export const resetPassword = async (req, res) => {
     }
 
     const user = await User.getUserById(payload.userId);
-    if (!user) {
+    const rider = await Rider.getRiderByMail(payload.email);
+    if (!user && !rider) {
       return res
         .status(404)
         .json({ success: false, message: "User not found." });
     }
+    let person;
+    if (user) {
+      person = user;
+    }
+    if (rider) {
+      person = rider;
+    }
+    if (person) {
+      person.password = await bcrypt.hash(password, 5);
+      person.forgotPasswordOtp = undefined;
+      person.forgotPasswordOtpExpiry = undefined;
 
-    user.password = await bcrypt.hash(password, 5);
-    user.forgotPasswordOtp = undefined;
-    user.forgotPasswordOtpExpiry = undefined;
+      await person.save();
 
-    await user.save();
+      await SendMail({
+        to: person.email,
+        subject: "Your ShipSmart password was changed",
+        text: `Hi ${person.name}, your password was updated successfully.`,
+        html: passwordChangedEmailTemplate({ userName: person.email }),
+      });
 
-    await SendMail({
-      to: user.email,
-      subject: "Your ShipSmart password was changed",
-      text: `Hi ${user.name}, your password was updated successfully.`,
-      html: passwordChangedEmailTemplate({ userName: user.name }),
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successfully.",
-    });
+      return res.status(200).json({
+        success: true,
+        message: "Password reset successfully.",
+      });
+    }
+    return res.status(404).json({ success: false, message: "User not found." });
   } catch (error) {
     console.error("ResetPassword error:", error);
     return res.status(500).json({

@@ -64,6 +64,14 @@ class Rider {
       throw new Error("error fetching rider tasks");
     }
   }
+  static async getRiderByMail(email) {
+    try {
+      const rider = await RIDER.findOne({ email: email });
+      return rider;
+    } catch (error) {
+      throw new Error("internal server error");
+    }
+  }
 }
 
 export default Rider;
