@@ -11,6 +11,7 @@ import {
   verifyEmail,
   sendToken,
   signup,
+  StripeChecout,
 } from "../controllers/user.js";
 import { getZones } from "../controllers/zone.js";
 import { verifyOtpToken } from "../middleware/auth.js";
@@ -23,8 +24,10 @@ user.post("/sendToken", sendToken);
 user.post("/sendOtp", SendOtp);
 user.post("/verifyOtp", verifyOtp);
 user.post("/resetPassword", verifyOtpToken, resetPassword);
+user.post("/create-checkout-session", verifyUserToken, StripeChecout);
 user.get("/zones", getZones);
 user.get("/walletBalance", verifyUserToken, getWalletBalance);
 user.get("/profile", verifyUserToken, getUserProfile);
 user.put("/profile", verifyUserToken, updateUserProfile);
+
 export default user;

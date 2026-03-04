@@ -114,3 +114,28 @@ export const getComplaints = async (req, res) => {
     return res.status(400).json({ success: true, message: error });
   }
 };
+export const getAllComplaints = async (req, res) => {
+  try {
+    const complaints = await COMPLAINT.find();
+    return res.status(200).json({ success: true, complaints: complaints });
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ success: true, message: error | "Complaints not found" });
+  }
+};
+export const UpdateComplainstatus = async (req, res) => {
+  const { complaintId } = req.params;
+  const { status } = req.body;
+  try {
+    const updatedComplaint = await COMPLAINT.findByIdAndUpdate(
+      complaintId,
+      { status },
+      { new: true },
+    );
+
+    res.json({ success: true, complaint: updatedComplaint });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};

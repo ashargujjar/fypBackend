@@ -9,7 +9,7 @@ import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
 import { getAdminKey } from "../schema/schema.js";
 import { verifyAccountEmailTemplate } from "../emails/verifyEmail.js";
 import Rider from "../models/rider.js";
-
+import Stripe from "stripe";
 function generateJWTtoken(user) {
   const payload = {
     userId: user._id,
@@ -470,5 +470,20 @@ export const updateUserProfile = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+// ------------------- stripe------------------
+export const StripeChecout = async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const { amount } = req.body;
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+      automatic_payment_methods: { enabled: true }, // Stripe handles cards
+    });
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

@@ -4,6 +4,7 @@ import { SendMail } from "../src/mails.js";
 import { riderWelcomeEmailTemplate } from "../emails/riderWelcome.js";
 import Shipment from "../models/shipment.js";
 import riderTasks from "../models/riderTasks.js";
+import Admin from "../models/Admin.js";
 export const addRider = async (req, res) => {
   try {
     const {
@@ -138,5 +139,20 @@ export const assignRider = async (req, res) => {
       .json({ success: true, message: "rider task assigned succesfully" });
   } catch (error) {
     return res.status(400).json({ success: false, error: error.message });
+  }
+};
+
+// --- get the dashboard counts
+export const AdminInfoverviews = async (req, res) => {
+  try {
+    const dashboardCounts = await Admin.getDashboardCounts();
+    return res
+      .status(200)
+      .json({ success: true, dashboardCounts: dashboardCounts });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      error: error.message || "error accoured in fetching the counts",
+    });
   }
 };
