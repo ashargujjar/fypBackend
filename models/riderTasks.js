@@ -15,7 +15,6 @@ class RiderTasks {
         throw new Error("Task already assigned to the rider.");
       }
       await Shipment.updateShipmentStatus("pickup assigned", this.shipmentId);
-
       const task = await RiderTasksModel.create({
         shipmentId: this.shipmentId,
         riderId: this.riderId,

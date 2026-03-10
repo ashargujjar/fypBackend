@@ -72,6 +72,23 @@ class Rider {
       throw new Error("internal server error");
     }
   }
+
+  static async getRiderById(riderId) {
+    try {
+      return await RIDER.findById(riderId);
+    } catch (error) {
+      console.error("Error finding rider by id:", error);
+      throw error;
+    }
+  }
+  static async removeRider(id) {
+    try {
+      return await RIDER.findByIdAndDelete(id);
+    } catch (error) {
+      console.error("Error deleting the rider", error);
+      throw error;
+    }
+  }
 }
 
 export default Rider;

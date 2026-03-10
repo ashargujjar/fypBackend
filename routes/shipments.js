@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyUserToken } from "../middleware/auth.js";
 import { bookShipment } from "../controllers/shipment.js";
+import { getAllShipments } from "../controllers/shipment.js";
 import { getUserShipments } from "../controllers/shipment.js";
 import { trackShipmentById } from "../controllers/shipment.js";
 import { calculateDeliveryCharges } from "../controllers/rate.js";
@@ -8,5 +9,6 @@ const shipment = express.Router();
 shipment.post("/bookShipment", verifyUserToken, bookShipment);
 shipment.post("/calculateCharges", verifyUserToken, calculateDeliveryCharges);
 shipment.get("/getShipments", verifyUserToken, getUserShipments);
+shipment.get("/getAllShipments", verifyUserToken, getAllShipments);
 shipment.get("/trackShipment/:shipmentId", verifyUserToken, trackShipmentById);
 export default shipment;

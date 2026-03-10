@@ -46,7 +46,7 @@ export const bookShipment = async (req, res) => {
       amount = Number(codAmount);
       await Wallet.updateOne(
         { userId: req.user.id },
-        { $inc: { balance: -deliveryChargesNumber } }
+        { $inc: { balance: -deliveryChargesNumber } },
       );
     }
     const shipment = new Shipment(
@@ -64,7 +64,7 @@ export const bookShipment = async (req, res) => {
       notes,
       amount,
       useWallet,
-      delieveryCharges
+      delieveryCharges,
     );
     const saved = await shipment.save();
 
@@ -140,7 +140,7 @@ export const getUserShipments = async (req, res) => {
 export const trackShipmentById = async (req, res) => {
   try {
     const { shipmentId } = req.params;
-    const shipment = await Shipment.getShipmentById(shipmentId);
+    const shipment = await Shipment.getShipmentWithRiderDetails(shipmentId);
     if (!shipment) {
       return res
         .status(404)
@@ -151,5 +151,21 @@ export const trackShipmentById = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
+  }
+};
+export const getAllShipments = async (req, res) => {
+  try {
+    const shipments = await Shipment.getAllShipmentsWithRiderDetails();
+    if (!shipments || shipments.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No shipments found" });
+    }
+    return res.status(200).json({ success: true, shipments });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Internal server error",
+    });
   }
 };
