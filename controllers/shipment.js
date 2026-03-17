@@ -8,11 +8,15 @@ export const bookShipment = async (req, res) => {
   try {
     const {
       pickupAddress,
+      pickupLat,
+      pickupLng,
       pickupCity,
       pickupZone,
       receiverName,
       receiverPhone,
       deliveryAddress,
+      deliveryLat,
+      deliveryLng,
       deliveryCity,
       deliveryZone,
       weight,
@@ -51,14 +55,24 @@ export const bookShipment = async (req, res) => {
         { $inc: { balance: -deliveryChargesNumber } },
       );
     }
+    const toOptionalNumber = (value) => {
+      if (value === null || value === undefined || value === "") return null;
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    };
+
     const shipment = new Shipment(
       req.user.id,
       pickupAddress,
+      toOptionalNumber(pickupLat),
+      toOptionalNumber(pickupLng),
       pickupCity,
       pickupZone,
       receiverName,
       receiverPhone,
       deliveryAddress,
+      toOptionalNumber(deliveryLat),
+      toOptionalNumber(deliveryLng),
       deliveryCity,
       deliveryZone,
       weight,

@@ -120,6 +120,14 @@ const shipmentSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    pickupLat: {
+      type: Number,
+      default: null,
+    },
+    pickupLng: {
+      type: Number,
+      default: null,
+    },
     pickupCity: {
       type: String,
       required: true,
@@ -144,6 +152,14 @@ const shipmentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    deliveryLat: {
+      type: Number,
+      default: null,
+    },
+    deliveryLng: {
+      type: Number,
+      default: null,
     },
     deliveryCity: {
       type: String,

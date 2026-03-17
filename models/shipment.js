@@ -5,11 +5,15 @@ class Shipment {
   constructor(
     userId,
     pickupAddress,
+    pickupLat,
+    pickupLng,
     pickupCity,
     pickupZone,
     receiverName,
     receiverPhone,
     deliveryAddress,
+    deliveryLat,
+    deliveryLng,
     deliveryCity,
     deliveryZone,
     weight,
@@ -23,11 +27,15 @@ class Shipment {
   ) {
     this.userId = userId;
     this.pickupAddress = pickupAddress;
+    this.pickupLat = pickupLat;
+    this.pickupLng = pickupLng;
     this.pickupCity = pickupCity;
     this.pickupZone = pickupZone;
     this.receiverName = receiverName;
     this.receiverPhone = receiverPhone;
     this.deliveryAddress = deliveryAddress;
+    this.deliveryLat = deliveryLat;
+    this.deliveryLng = deliveryLng;
     this.deliveryCity = deliveryCity;
     this.deliveryZone = deliveryZone;
     this.weight = weight;
