@@ -9,6 +9,7 @@ import {
   updateRider,
   getRiderProfile,
 } from "../controllers/rider.js";
+import { attachIotDevice, detachIotDevice } from "../controllers/iot.js";
 
 const rider = express.Router();
 rider.post("/addRider", verifyUserToken, addRider); // Purpose: add a new rider; Data: JSON body with rider details
@@ -22,4 +23,6 @@ rider.put(
 rider.get("/profile", verifyUserToken, getRiderProfile); // Purpose: get current rider profile; Data: none (auth only)
 rider.put("/editRider/:riderId", verifyUserToken, updateRider); // Purpose: update rider details; Data: path param riderId + JSON body
 rider.delete("/removeRider/:riderId", verifyUserToken, RemoveRider); // Purpose: remove rider; Data: path param riderId
+rider.post("/iot/attach", verifyUserToken, attachIotDevice); // Purpose: attach IoT device to shipment; Data: JSON body with shipmentId + deviceId
+rider.post("/iot/detach", verifyUserToken, detachIotDevice); // Purpose: detach IoT device from shipment; Data: JSON body with shipmentId + deviceId
 export default rider;

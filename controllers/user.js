@@ -6,7 +6,7 @@ import { generateOTP } from "../emails/otp.js";
 import { welcomeEmailTemplate } from "../emails/welcomeEmail.js";
 import { otpEmailTemplate } from "../emails/otp.js";
 import { passwordChangedEmailTemplate } from "../emails/passwordChange.js";
-import { getAdminKey } from "../schema/schema.js";
+import { getAdminKey, Wallet } from "../schema/schema.js";
 import { verifyAccountEmailTemplate } from "../emails/verifyEmail.js";
 import Rider from "../models/rider.js";
 import Stripe from "stripe";
@@ -394,6 +394,73 @@ export const getWalletBalance = async (req, res) => {
     return res
       .status(401)
       .json({ success: false, message: "error fetching the wallet" });
+  }
+};
+
+// ----------- add wallet balance (demo/manual) -------------
+export const topupWallet = async (req, res) => {
+  try {
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be a positive number",
+      });
+    }
+
+    const wallet = await Wallet.findOne({ userId: req.user.id });
+    if (!wallet) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Wallet not found" });
+    }
+
+    wallet.balance += amount;
+    await wallet.save();
+
+    return res.status(200).json({ success: true, wallet });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to add wallet balance",
+    });
+  }
+};
+
+// ----------- withdraw wallet balance (demo/manual) -------------
+export const withdrawWallet = async (req, res) => {
+  try {
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be a positive number",
+      });
+    }
+
+    const wallet = await Wallet.findOne({ userId: req.user.id });
+    if (!wallet) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Wallet not found" });
+    }
+
+    if (wallet.balance < amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Insufficient wallet balance",
+      });
+    }
+
+    wallet.balance -= amount;
+    await wallet.save();
+
+    return res.status(200).json({ success: true, wallet });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to withdraw wallet balance",
+    });
   }
 };
 

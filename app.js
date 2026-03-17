@@ -5,6 +5,7 @@ import rider from "./routes/rider.js";
 import shipment from "./routes/shipments.js";
 import payments from "./routes/payments.js";
 import complaint from "./routes/complaint.js";
+import iot from "./routes/iot.js";
 import cors from "cors";
 import dotenv from "dotenv";
 import { connectdb } from "./db/db.js";
@@ -44,6 +45,7 @@ app.use("/rider", rider);
 app.use("/shipment", shipment);
 app.use("/payments", payments);
 app.use("/complaint", complaint);
+app.use("/iot", iot);
 
 app.get("/", (req, res) => {
   res.json({ status: "ok" });

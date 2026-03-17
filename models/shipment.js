@@ -13,6 +13,8 @@ class Shipment {
     deliveryCity,
     deliveryZone,
     weight,
+    minTemp,
+    maxTemp,
     packageType,
     notes,
     codAmount,
@@ -29,6 +31,8 @@ class Shipment {
     this.deliveryCity = deliveryCity;
     this.deliveryZone = deliveryZone;
     this.weight = weight;
+    this.minTemp = minTemp;
+    this.maxTemp = maxTemp;
     this.packageType = packageType;
     this.notes = notes;
     this.codAmount = codAmount;

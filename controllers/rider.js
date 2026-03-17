@@ -1,6 +1,11 @@
 import Rider from "../models/rider.js";
 import Shipment from "../models/shipment.js";
-import { RiderTasks as RiderTasksModel } from "../schema/schema.js";
+import {
+  RiderTasks as RiderTasksModel,
+  IOT_DEVICE,
+  PAYMENT,
+  Wallet,
+} from "../schema/schema.js";
 import { SendMail } from "../src/mails.js";
 import { riderProfileUpdatedEmailTemplate } from "../emails/riderUpdated.js";
 export const getRider = async (req, res) => {
@@ -49,8 +54,15 @@ export const updateShipmentStatus = async (req, res) => {
     }
 
     const normalizedStatus = status;
-    const shouldUnassign =
-      normalizedStatus.toLowerCase() === "dropped at origin hub";
+    const normalizedStatusLower = normalizedStatus.toLowerCase();
+    const isDroppedAtOrigin =
+      normalizedStatusLower.includes("dropped at origin hub") ||
+      normalizedStatusLower.includes("dropped at warehouse") ||
+      normalizedStatusLower.includes("droped at warehouse") ||
+      normalizedStatusLower.includes("dropped at origin");
+    const isDelivered = normalizedStatusLower.includes("delivered");
+    const shouldUnassign = normalizedStatusLower === "dropped at origin hub";
+    const shouldAutoDetachIot = isDroppedAtOrigin || isDelivered;
 
     const updatedShipment = await Shipment.updateShipmentStatus(
       normalizedStatus,
@@ -68,12 +80,98 @@ export const updateShipmentStatus = async (req, res) => {
       taskFilter.riderId = req.user?.id;
     }
 
+    let shouldSaveShipment = false;
+
     if (shouldUnassign) {
       await RiderTasksModel.deleteMany(taskFilter);
       updatedShipment.riderStatus = "unassigned";
-      await updatedShipment.save();
+      shouldSaveShipment = true;
     } else {
       await RiderTasksModel.updateMany(taskFilter, { status: normalizedStatus });
+    }
+
+    if (shouldAutoDetachIot) {
+      const now = new Date();
+      let device = null;
+      const currentDeviceId =
+        typeof updatedShipment.iotDeviceId === "string"
+          ? updatedShipment.iotDeviceId.trim()
+          : "";
+
+      if (currentDeviceId) {
+        device = await IOT_DEVICE.findOne({ deviceId: currentDeviceId });
+      }
+      if (!device) {
+        device = await IOT_DEVICE.findOne({
+          assignedShipmentId: updatedShipment._id,
+        });
+      }
+
+      if (device) {
+        const assignedShipmentId = device.assignedShipmentId?.toString();
+        if (!assignedShipmentId || assignedShipmentId === shipmentId) {
+          if (device.status !== "Disabled") {
+            device.status = "Available";
+          }
+          device.assignedShipmentId = null;
+          device.assignedRiderId = null;
+          device.detachedAt = now;
+          device.lastActiveAt = now;
+          await device.save();
+
+          updatedShipment.iotDeviceId =
+            updatedShipment.iotDeviceId || device.deviceId;
+        }
+      }
+
+      if (updatedShipment.iotDeviceId || device) {
+        updatedShipment.iotStatus = "detached";
+        updatedShipment.iotDetachedAt = now;
+        shouldSaveShipment = true;
+      }
+    }
+
+    if (shouldSaveShipment) {
+      await updatedShipment.save();
+    }
+
+    if (isDelivered) {
+      const payment = await PAYMENT.findOne({
+        shipmentId: updatedShipment._id,
+      });
+
+      if (payment) {
+        const statusLower = String(payment.status || "").toLowerCase();
+        const alreadySettled =
+          statusLower.includes("paid") || statusLower.includes("completed");
+
+        if (!alreadySettled) {
+          const codAmount = Number(payment.codAmount || 0);
+          const deliveryCharges = Number(payment.deliveryCharges || 0);
+          const useWalletFlag = payment.useWallet === true;
+          let creditAmount = 0;
+
+          if (codAmount > 0) {
+            creditAmount =
+              codAmount - (useWalletFlag ? 0 : deliveryCharges);
+          }
+
+          if (creditAmount < 0) {
+            creditAmount = 0;
+          }
+
+          if (creditAmount > 0) {
+            await Wallet.updateOne(
+              { userId: updatedShipment.userId },
+              { $inc: { balance: creditAmount } },
+            );
+          }
+
+          payment.status = codAmount > 0 ? "Paid" : "Completed";
+          payment.transactionDate = new Date();
+          await payment.save();
+        }
+      }
     }
 
     return res.status(200).json({

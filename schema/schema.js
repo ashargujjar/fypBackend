@@ -160,6 +160,32 @@ const shipmentSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    minTemp: {
+      type: Number,
+      default: null,
+    },
+    maxTemp: {
+      type: Number,
+      default: null,
+    },
+    iotDeviceId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    iotStatus: {
+      type: String,
+      enum: ["none", "attached", "detached"],
+      default: "none",
+    },
+    iotAttachedAt: {
+      type: Date,
+      default: null,
+    },
+    iotDetachedAt: {
+      type: Date,
+      default: null,
+    },
     packageType: {
       type: String,
       required: true,
@@ -333,6 +359,175 @@ const rateSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+const iotDeviceSchema = new mongoose.Schema(
+  {
+    deviceId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    moduleType: {
+      type: String,
+      trim: true,
+      default: "IoT Module",
+    },
+    status: {
+      type: String,
+      enum: ["Available", "Assigned", "Disabled"],
+      default: "Available",
+    },
+    firmwareVersion: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    simNumber: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    assignedShipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SHIPMENT",
+      default: null,
+    },
+    assignedRiderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RIDER",
+      default: null,
+    },
+    lastActiveAt: {
+      type: Date,
+      default: null,
+    },
+    attachedAt: {
+      type: Date,
+      default: null,
+    },
+    detachedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+const iotTelemetrySchema = new mongoose.Schema(
+  {
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SHIPMENT",
+      required: true,
+    },
+    deviceId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    temperature: {
+      type: Number,
+      default: null,
+    },
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
+    shock: {
+      type: Boolean,
+      default: false,
+    },
+    shockValue: {
+      type: Number,
+      default: null,
+    },
+    recordedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    raw: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
+const iotAlertSchema = new mongoose.Schema(
+  {
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SHIPMENT",
+      required: true,
+    },
+    deviceId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    type: {
+      type: String,
+      enum: ["TEMP_LOW", "TEMP_HIGH", "SHOCK", "BREACH"],
+      required: true,
+    },
+    message: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    severity: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium",
+    },
+    temperature: {
+      type: Number,
+      default: null,
+    },
+    minTemp: {
+      type: Number,
+      default: null,
+    },
+    maxTemp: {
+      type: Number,
+      default: null,
+    },
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
+    shock: {
+      type: Boolean,
+      default: false,
+    },
+    shockValue: {
+      type: Number,
+      default: null,
+    },
+    resolved: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  },
+);
 const complaintSchema = new mongoose.Schema(
   {
     shipmentId: {
@@ -413,6 +608,9 @@ export const PAYMENT = mongoose.model("PAYMENT", paymentSchema);
 export const Wallet = mongoose.model("WALLET", walletSchema);
 export const CityZone = mongoose.model("CITY_ZONE", cityZoneSchema);
 export const RATE = mongoose.model("RATE", rateSchema);
+export const IOT_DEVICE = mongoose.model("IOT_DEVICE", iotDeviceSchema);
+export const IOT_TELEMETRY = mongoose.model("IOT_TELEMETRY", iotTelemetrySchema);
+export const IOT_ALERT = mongoose.model("IOT_ALERT", iotAlertSchema);
 export const COMPLAINT = mongoose.model("COMPLAINT", complaintSchema);
 export const RiderTasks = mongoose.model("RIDER_TASKS", riderTasksSchema);
 export default mongoose.model("USER", userSchema);

@@ -5,6 +5,8 @@ import {
   SendOtp,
   verifyOtp,
   getWalletBalance,
+  topupWallet,
+  withdrawWallet,
   getUserProfile,
   updateUserProfile,
   resetPassword,
@@ -27,6 +29,8 @@ user.post("/resetPassword", verifyOtpToken, resetPassword); // Purpose: reset pa
 user.post("/create-checkout-session", verifyUserToken, StripeChecout); // Purpose: create Stripe checkout session; Data: JSON body with amount/items
 user.get("/zones", getZones); // Purpose: list service zones; Data: none
 user.get("/walletBalance", verifyUserToken, getWalletBalance); // Purpose: get wallet balance; Data: none (auth only)
+user.post("/wallet/topup", verifyUserToken, topupWallet); // Purpose: add wallet balance (demo/manual); Data: JSON body with amount
+user.post("/wallet/withdraw", verifyUserToken, withdrawWallet); // Purpose: withdraw wallet balance (demo/manual); Data: JSON body with amount
 user.get("/profile", verifyUserToken, getUserProfile); // Purpose: get user profile; Data: none (auth only)
 user.put("/profile", verifyUserToken, updateUserProfile); // Purpose: update user profile; Data: JSON body with profile fields
 
