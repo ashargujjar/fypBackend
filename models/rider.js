@@ -57,7 +57,9 @@ class Rider {
   static async getRiderTasks(riderId) {
     try {
       const query = riderId ? { riderId } : {};
-      const tasks = await RiderTasks.find(query);
+      const tasks = await RiderTasks.find(query).populate({
+        path: "shipmentId",
+      });
       return tasks;
     } catch (error) {
       console.error("Error fetching rider tasks:", error);

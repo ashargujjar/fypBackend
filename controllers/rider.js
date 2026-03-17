@@ -1,4 +1,6 @@
 import Rider from "../models/rider.js";
+import Shipment from "../models/shipment.js";
+import { RiderTasks as RiderTasksModel } from "../schema/schema.js";
 import { SendMail } from "../src/mails.js";
 import { riderProfileUpdatedEmailTemplate } from "../emails/riderUpdated.js";
 export const getRider = async (req, res) => {
@@ -11,13 +13,77 @@ export const getRider = async (req, res) => {
 };
 export const getRiderTasks = async (req, res) => {
   try {
-    const riderId = req.params?.riderId || req.query?.riderId;
+    const riderId = req.params?.riderId || req.query?.riderId || req.user.id;
     const tasks = await Rider.getRiderTasks(riderId);
     return res.status(200).json({ success: true, tasks });
   } catch (err) {
     return res
       .status(400)
       .json({ success: false, message: err?.message || err });
+  }
+};
+
+export const updateShipmentStatus = async (req, res) => {
+  try {
+    const shipmentId = req.params?.shipmentId || req.body?.shipmentId;
+    const status =
+      typeof req.body?.status === "string" ? req.body.status.trim() : "";
+
+    if (!shipmentId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "shipmentId is required" });
+    }
+
+    if (!status) {
+      return res
+        .status(400)
+        .json({ success: false, message: "status is required" });
+    }
+
+    if (req.user?.role === "customer") {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update shipment status",
+      });
+    }
+
+    const normalizedStatus = status;
+    const shouldUnassign =
+      normalizedStatus.toLowerCase() === "dropped at origin hub";
+
+    const updatedShipment = await Shipment.updateShipmentStatus(
+      normalizedStatus,
+      shipmentId,
+    );
+
+    if (!updatedShipment) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Shipment not found" });
+    }
+
+    const taskFilter = { shipmentId: updatedShipment._id };
+    if (req.user?.role !== "admin") {
+      taskFilter.riderId = req.user?.id;
+    }
+
+    if (shouldUnassign) {
+      await RiderTasksModel.deleteMany(taskFilter);
+      updatedShipment.riderStatus = "unassigned";
+      await updatedShipment.save();
+    } else {
+      await RiderTasksModel.updateMany(taskFilter, { status: normalizedStatus });
+    }
+
+    return res.status(200).json({
+      success: true,
+      shipment: updatedShipment,
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 

@@ -36,7 +36,7 @@ app.use(
     origin: corsOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 app.use("/admin", admin);
 app.use("/user", user);

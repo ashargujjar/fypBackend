@@ -14,12 +14,12 @@ complaint.post(
   verifyUserToken,
   upload.single("image"),
   createComplaint,
-);
-complaint.get("/userComplaints", verifyUserToken, getComplaints);
-complaint.get("/Allcomplaints", verifyUserToken, getAllComplaints);
+); // Purpose: create complaint with optional image; Data: multipart/form-data (fields + image)
+complaint.get("/userComplaints", verifyUserToken, getComplaints); // Purpose: list current user's complaints; Data: query params (optional filters)
+complaint.get("/Allcomplaints", verifyUserToken, getAllComplaints); // Purpose: list all complaints; Data: query params (optional filters)
 complaint.put(
   "/updateStatus/:complaintId",
   verifyUserToken,
   UpdateComplainstatus,
-);
+); // Purpose: update complaint status; Data: path param complaintId + JSON body (status/notes)
 export default complaint;
