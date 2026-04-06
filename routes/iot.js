@@ -4,12 +4,14 @@ import {
   ingestIotTelemetry,
   getShipmentTelemetry,
   getShipmentAlerts,
+  getUserAlerts,
 } from "../controllers/iot.js";
 
 const iot = express.Router();
 
 iot.post("/telemetry", ingestIotTelemetry); // Purpose: ingest IoT telemetry; Data: JSON body from device
 iot.get("/telemetry/:shipmentId", verifyUserToken, getShipmentTelemetry); // Purpose: list telemetry for a shipment; Data: shipmentId
+iot.get("/alerts", verifyUserToken, getUserAlerts); // Purpose: list alerts for current user/admin; Data: query params (optional limit)
 iot.get("/alerts/:shipmentId", verifyUserToken, getShipmentAlerts); // Purpose: list alerts for a shipment; Data: shipmentId
 
 export default iot;

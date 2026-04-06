@@ -5,8 +5,10 @@ import {
   getRider,
   getRiderTasks,
   RemoveRider,
+  sendDeliveryPin,
   updateShipmentStatus,
   updateRider,
+  verifyDeliveryPin,
   getRiderProfile,
 } from "../controllers/rider.js";
 import { attachIotDevice, detachIotDevice } from "../controllers/iot.js";
@@ -15,6 +17,8 @@ const rider = express.Router();
 rider.post("/addRider", verifyUserToken, addRider); // Purpose: add a new rider; Data: JSON body with rider details
 rider.get("/getRiders", verifyUserToken, getRider); // Purpose: list riders; Data: query params (optional filters)
 rider.get("/getRiderTasks", verifyUserToken, getRiderTasks); // Purpose: list rider tasks; Data: query params (optional filters)
+rider.post("/sendDeliveryPin", verifyUserToken, sendDeliveryPin); // Purpose: send delivery PIN to customer; Data: JSON body with shipmentId
+rider.post("/verifyDeliveryPin", verifyUserToken, verifyDeliveryPin); // Purpose: verify delivery PIN; Data: JSON body with shipmentId + pin
 rider.put(
   "/updateShipmentStatus/:shipmentId",
   verifyUserToken,

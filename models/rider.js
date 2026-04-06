@@ -59,6 +59,8 @@ class Rider {
       const query = riderId ? { riderId } : {};
       const tasks = await RiderTasks.find(query).populate({
         path: "shipmentId",
+        select:
+          "-deliveryPinHash -deliveryPinExpiresAt -deliveryPinLastSentAt -deliveryPinVerifiedAt",
       });
       return tasks;
     } catch (error) {

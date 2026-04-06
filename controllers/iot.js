@@ -1,10 +1,13 @@
 import mongoose from "mongoose";
-import {
+import USER, {
   IOT_DEVICE,
   IOT_TELEMETRY,
   IOT_ALERT,
   SHIPMENT,
+  RiderTasks,
+  RIDER,
 } from "../schema/schema.js";
+import { SendMail } from "../src/mails.js";
 
 const normalizeDeviceId = (value) =>
   String(value || "")
@@ -53,6 +56,117 @@ const parseShock = (body) => {
     shockValue = shockFlag ? 1 : 0;
   }
   return { shock: Boolean(shockFlag), shockValue };
+};
+
+const logIotTelemetryIssue = (message, context = {}) => {
+  console.warn("IOT_TELEMETRY:", message, context);
+};
+
+const formatAlertSummary = (alert) => {
+  const type = alert?.type || "ALERT";
+  const severity = alert?.severity ? ` (${alert.severity})` : "";
+  const message = alert?.message || "Alert triggered.";
+  const temp =
+    alert?.temperature !== null && alert?.temperature !== undefined
+      ? ` Temp: ${alert.temperature}`
+      : "";
+  const coords =
+    alert?.latitude !== null &&
+    alert?.latitude !== undefined &&
+    alert?.longitude !== null &&
+    alert?.longitude !== undefined
+      ? ` @ ${alert.latitude}, ${alert.longitude}`
+      : "";
+  return `${type}${severity}: ${message}${temp}${coords}`;
+};
+
+const MAX_ALERT_EMAILS_PER_SHIPMENT = 3;
+
+const sendBreachEmails = async ({ shipment, deviceId, alerts }) => {
+  try {
+    if (!shipment || !alerts || alerts.length === 0) return;
+
+    const recipients = new Map();
+    const customer = await USER.findById(shipment.userId).select("email name");
+    if (customer?.email) {
+      recipients.set(customer.email, customer.name || "Customer");
+    }
+
+    const tasks = await RiderTasks.find({ shipmentId: shipment._id }).select(
+      "riderId",
+    );
+    const riderIds = tasks.map((t) => t.riderId).filter(Boolean);
+    if (riderIds.length > 0) {
+      const riders = await RIDER.find({ _id: { $in: riderIds } }).select(
+        "email name",
+      );
+      riders.forEach((rider) => {
+        if (rider?.email) {
+          recipients.set(rider.email, rider.name || "Rider");
+        }
+      });
+    }
+
+    const admins = await USER.find({ role: "admin" }).select("email name");
+    admins.forEach((admin) => {
+      if (admin?.email) {
+        recipients.set(admin.email, admin.name || "Admin");
+      }
+    });
+
+    if (recipients.size === 0) return;
+
+    const updatedShipment = await SHIPMENT.findOneAndUpdate(
+      {
+        _id: shipment._id,
+        $or: [
+          { iotAlertEmailCount: { $lt: MAX_ALERT_EMAILS_PER_SHIPMENT } },
+          { iotAlertEmailCount: { $exists: false } },
+        ],
+      },
+      {
+        $inc: { iotAlertEmailCount: 1 },
+        $set: { iotAlertEmailLastSentAt: new Date() },
+      },
+      { new: true },
+    );
+
+    if (!updatedShipment) return;
+
+    const subject = `IoT Alert${alerts.length > 1 ? "s" : ""} for Shipment ${shipment._id}`;
+    const alertLines = alerts.map(formatAlertSummary).join("\n");
+    const text = [
+      `Shipment: ${shipment._id}`,
+      `Device: ${deviceId}`,
+      "",
+      "Alerts:",
+      alertLines,
+    ].join("\n");
+
+    const alertListHtml = alerts
+      .map((alert) => `<li>${formatAlertSummary(alert)}</li>`)
+      .join("");
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;">
+        <h2>IoT Alert${alerts.length > 1 ? "s" : ""}</h2>
+        <p><strong>Shipment:</strong> ${shipment._id}</p>
+        <p><strong>Device:</strong> ${deviceId}</p>
+        <ul>${alertListHtml}</ul>
+      </div>
+    `;
+
+    await Promise.all(
+      Array.from(recipients.entries()).map(async ([email]) => {
+        try {
+          await SendMail({ to: email, subject, text, html });
+        } catch (mailError) {
+          console.error("IoT alert email failed:", email, mailError?.message);
+        }
+      }),
+    );
+  } catch (error) {
+    console.error("sendBreachEmails error:", error?.message || error);
+  }
 };
 
 export const registerIotDevice = async (req, res) => {
@@ -151,8 +265,17 @@ export const disableIotDevice = async (req, res) => {
 
     if (assignedShipmentId) {
       await SHIPMENT.findByIdAndUpdate(assignedShipmentId, {
-        iotStatus: "detached",
-        iotDetachedAt: now,
+        $set: {
+          iotStatus: "detached",
+          iotDetachedAt: now,
+        },
+        $push: {
+          timeline: {
+            label: `IoT device detached (${device.deviceId})`,
+            status: "IoT detached",
+            timestamp: now,
+          },
+        },
       });
     }
 
@@ -230,6 +353,14 @@ export const attachIotDevice = async (req, res) => {
     shipment.iotStatus = "attached";
     shipment.iotAttachedAt = now;
     shipment.iotDetachedAt = null;
+    if (!Array.isArray(shipment.timeline)) {
+      shipment.timeline = [];
+    }
+    shipment.timeline.push({
+      label: `IoT device attached (${device.deviceId})`,
+      status: "IoT attached",
+      timestamp: now,
+    });
     await shipment.save();
 
     return res.status(200).json({
@@ -305,6 +436,14 @@ export const detachIotDevice = async (req, res) => {
     shipment.iotDeviceId = shipment.iotDeviceId || device.deviceId;
     shipment.iotStatus = "detached";
     shipment.iotDetachedAt = now;
+    if (!Array.isArray(shipment.timeline)) {
+      shipment.timeline = [];
+    }
+    shipment.timeline.push({
+      label: `IoT device detached (${device.deviceId})`,
+      status: "IoT detached",
+      timestamp: now,
+    });
     await shipment.save();
 
     return res.status(200).json({
@@ -327,6 +466,7 @@ export const ingestIotTelemetry = async (req, res) => {
     const { deviceId, shipmentId, recordedAt } = req.body || {};
     const normalizedId = normalizeDeviceId(deviceId);
     if (!normalizedId) {
+      logIotTelemetryIssue("Missing deviceId", { deviceId });
       return res.status(400).json({
         success: false,
         message: "deviceId is required",
@@ -335,6 +475,7 @@ export const ingestIotTelemetry = async (req, res) => {
 
     const device = await IOT_DEVICE.findOne({ deviceId: normalizedId });
     if (!device) {
+      logIotTelemetryIssue("Device not found", { deviceId: normalizedId });
       return res.status(404).json({
         success: false,
         message: "Device not found",
@@ -350,14 +491,30 @@ export const ingestIotTelemetry = async (req, res) => {
       const attachedShipment = await SHIPMENT.findOne({
         iotDeviceId: normalizedId,
         iotStatus: "attached",
-      });
+      }).sort({ updatedAt: -1, createdAt: -1 });
       if (attachedShipment) {
         resolvedShipmentId = attachedShipment._id.toString();
         device.assignedShipmentId = attachedShipment._id;
       }
     }
+    if (!resolvedShipmentId) {
+      const linkedShipment = await SHIPMENT.findOne({
+        iotDeviceId: normalizedId,
+      }).sort({ updatedAt: -1, createdAt: -1 });
+      if (linkedShipment) {
+        resolvedShipmentId = linkedShipment._id.toString();
+        if (!device.assignedShipmentId) {
+          device.assignedShipmentId = linkedShipment._id;
+        }
+      }
+    }
 
     if (!resolvedShipmentId || !isValidShipmentId(resolvedShipmentId)) {
+      logIotTelemetryIssue("Invalid shipmentId", {
+        deviceId: normalizedId,
+        shipmentId: resolvedShipmentId,
+        attachedShipmentId: device.assignedShipmentId?.toString() || null,
+      });
       return res.status(400).json({
         success: false,
         message: "Valid shipmentId is required",
@@ -368,6 +525,11 @@ export const ingestIotTelemetry = async (req, res) => {
       device.assignedShipmentId &&
       device.assignedShipmentId.toString() !== resolvedShipmentId
     ) {
+      logIotTelemetryIssue("Device assigned to different shipment", {
+        deviceId: normalizedId,
+        shipmentId: resolvedShipmentId,
+        attachedShipmentId: device.assignedShipmentId?.toString(),
+      });
       return res.status(409).json({
         success: false,
         message: "Device is assigned to a different shipment",
@@ -376,6 +538,10 @@ export const ingestIotTelemetry = async (req, res) => {
 
     const shipment = await SHIPMENT.findById(resolvedShipmentId);
     if (!shipment) {
+      logIotTelemetryIssue("Shipment not found", {
+        deviceId: normalizedId,
+        shipmentId: resolvedShipmentId,
+      });
       return res.status(404).json({
         success: false,
         message: "Shipment not found",
@@ -393,20 +559,41 @@ export const ingestIotTelemetry = async (req, res) => {
         ? new Date(recordedAt)
         : new Date();
 
-    const telemetry = await IOT_TELEMETRY.create({
-      shipmentId: shipment._id,
-      deviceId: normalizedId,
-      temperature,
-      latitude,
-      longitude,
-      shock,
-      shockValue,
-      recordedAt: recorded,
-      raw: req.body?.raw ?? null,
-    });
+    const telemetry = await IOT_TELEMETRY.findOneAndUpdate(
+      { shipmentId: shipment._id, deviceId: normalizedId },
+      {
+        $set: {
+          temperature,
+          latitude,
+          longitude,
+          shock,
+          shockValue,
+          recordedAt: recorded,
+          raw: req.body?.raw ?? null,
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
 
     device.lastActiveAt = new Date();
+    if (!device.assignedShipmentId) {
+      device.assignedShipmentId = shipment._id;
+    }
+    if (device.status !== "Disabled") {
+      device.status = "Assigned";
+    }
     await device.save();
+
+    if (shipment.iotStatus !== "attached") {
+      shipment.iotStatus = "attached";
+      if (!shipment.iotAttachedAt) {
+        shipment.iotAttachedAt = new Date();
+      }
+      if (!shipment.iotDeviceId) {
+        shipment.iotDeviceId = normalizedId;
+      }
+      await shipment.save();
+    }
 
     const alerts = [];
     const minTemp = toNumberOrNull(shipment.minTemp);
@@ -461,6 +648,11 @@ export const ingestIotTelemetry = async (req, res) => {
     let createdAlerts = [];
     if (alerts.length > 0) {
       createdAlerts = await IOT_ALERT.insertMany(alerts);
+      await sendBreachEmails({
+        shipment,
+        deviceId: normalizedId,
+        alerts: createdAlerts,
+      });
     }
 
     return res.status(201).json({
@@ -518,6 +710,24 @@ export const getShipmentAlerts = async (req, res) => {
       });
     }
 
+    const isAdmin = req.user?.role === "admin";
+    if (!isAdmin) {
+      const shipment = await SHIPMENT.findById(shipmentId).select("userId");
+      if (!shipment) {
+        return res.status(404).json({
+          success: false,
+          message: "Shipment not found",
+        });
+      }
+      const ownerId = shipment.userId?.toString();
+      if (!ownerId || ownerId !== req.user?.id) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view alerts for this shipment",
+        });
+      }
+    }
+
     const alerts = await IOT_ALERT.find({ shipmentId }).sort({
       createdAt: -1,
     });
@@ -525,6 +735,45 @@ export const getShipmentAlerts = async (req, res) => {
     return res.status(200).json({ success: true, alerts });
   } catch (error) {
     console.error("getShipmentAlerts error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching IoT alerts",
+      detail: error?.message,
+    });
+  }
+};
+
+export const getUserAlerts = async (req, res) => {
+  try {
+    const limitRaw = Number(req.query?.limit);
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(Math.max(limitRaw, 1), 500)
+      : 200;
+    const isAdmin = req.user?.role === "admin";
+    let query = {};
+
+    if (!isAdmin) {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+      const shipments = await SHIPMENT.find({ userId }).select("_id");
+      if (!shipments || shipments.length === 0) {
+        return res.status(200).json({ success: true, alerts: [] });
+      }
+      query = { shipmentId: { $in: shipments.map((s) => s._id) } };
+    }
+
+    const alerts = await IOT_ALERT.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    return res.status(200).json({ success: true, alerts });
+  } catch (error) {
+    console.error("getUserAlerts error:", error);
     return res.status(500).json({
       success: false,
       message: "Server error while fetching IoT alerts",

@@ -202,6 +202,15 @@ const shipmentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    iotAlertEmailCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    iotAlertEmailLastSentAt: {
+      type: Date,
+      default: null,
+    },
     packageType: {
       type: String,
       required: true,
@@ -226,6 +235,22 @@ const shipmentSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    deliveryPinHash: {
+      type: String,
+      default: null,
+    },
+    deliveryPinExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    deliveryPinLastSentAt: {
+      type: Date,
+      default: null,
+    },
+    deliveryPinVerifiedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       default: "pending",
@@ -233,7 +258,29 @@ const shipmentSchema = new mongoose.Schema(
     riderStatus: {
       type: String,
       default: "unassigned",
-      enum: ["assigned", "unassigned"],
+      trim: true,
+    },
+    timeline: {
+      type: [
+        {
+          label: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          status: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+          timestamp: {
+            type: Date,
+            required: true,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
     },
   },
   {
