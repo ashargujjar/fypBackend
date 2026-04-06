@@ -6,6 +6,8 @@ import {
   AdminInfoverviews,
   assignRider,
   getShipments,
+  getCustomers,
+  removeCustomer,
 } from "../controllers/admin.js";
 import {
   registerIotDevice,
@@ -26,6 +28,8 @@ admin.post("/signup", signup); // Purpose: admin signup; Data: JSON body with pr
 admin.post("/assignRider", verifyUserToken, assignRider); // Purpose: assign rider to shipment; Data: JSON body with shipmentId + riderId
 admin.get("/allShipments", verifyUserToken, getShipments); // Purpose: list all shipments; Data: query params (optional filters)
 admin.get("/countDashboard", verifyUserToken, AdminInfoverviews); // Purpose: dashboard overview counts; Data: none (auth only)
+admin.get("/customers", verifyUserToken, getCustomers); // Purpose: list customers with stats; Data: none (auth only)
+admin.delete("/customers/:customerId", verifyUserToken, removeCustomer); // Purpose: remove a customer; Data: path param customerId
 admin.put("/rates", verifyUserToken, setRates); // Purpose: update delivery rates; Data: JSON body with rate config
 admin.post("/iot/register", verifyUserToken, registerIotDevice); // Purpose: register new IoT device; Data: JSON body with device details
 admin.get("/iot/devices", verifyUserToken, listIotDevices); // Purpose: list IoT devices; Data: none (auth only)
